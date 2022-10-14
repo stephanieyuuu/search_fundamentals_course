@@ -84,8 +84,21 @@ def get_opensearch():
     host = 'localhost'
     port = 9200
     auth = ('admin', 'admin')
+
     #### Step 2.a: Create a connection to OpenSearch
-    client = None
+ 
+    # Create the client with SSL/TLS enabled, but hostname and certificate verification disabled.
+    client = OpenSearch(
+        hosts=[{'host': host, 'port': port}],
+        http_compress=True,  # enables gzip compression for request bodies
+        http_auth=auth,
+        # client_cert = client_cert_path,
+        # client_key = client_key_path,
+        use_ssl=True,
+        verify_certs=False,
+        ssl_assert_hostname=False,
+        ssl_show_warn=False,
+    )
     return client
 
 
@@ -107,8 +120,18 @@ def index_file(file, index_name):
         if 'productId' not in doc or len(doc['productId']) == 0:
             continue
         #### Step 2.b: Create a valid OpenSearch Doc and bulk index 2000 docs at a time
-        the_doc = None
+        the_doc = {'_index': index_name, '_id': doc['sku'][0], '_source': doc} # '_source': doc is our complete doc that we read from lines 115-118
+        # '_index': index_name is the index we're putting our data into
         docs.append(the_doc)
+        docs_indexed += 1
+
+        if docs_indexed % 2000 == 0:    # the more the better until a certain limit, will fail
+            bulk(client, docs, request_timeout=60)  # defaults to 60? I can put it higher if I'm indexing more, will take more time
+            docs = []
+
+    if len(docs) != 0:
+        bulk(client, docs, request_timeout=60)
+        docs_indexed += len(docs)
 
     return docs_indexed
 
@@ -118,7 +141,7 @@ def index_file(file, index_name):
 @click.option('--workers', '-w', default=8, help="The number of workers to use to process files")
 def main(source_dir: str, index_name: str, workers: int):
 
-    files = glob.glob(source_dir + "/*.xml")
+    files = glob.glob(source_dir + "/*.xml")    #to test with fewer files, give a single xml file name ("/workspace/datasets")
     docs_indexed = 0
     start = perf_counter()
     with concurrent.futures.ProcessPoolExecutor(max_workers=workers) as executor:
@@ -131,3 +154,5 @@ def main(source_dir: str, index_name: str, workers: int):
 
 if __name__ == "__main__":
     main()
+
+# tail -f /workspace/logs/index_products.log

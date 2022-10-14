@@ -94,7 +94,8 @@ def query():
     print("query obj: {}".format(query_obj))
 
     #### Step 4.b.ii
-    response = None   # TODO: Replace me with an appropriate call to OpenSearch
+    response = opensearch.search(body=query_obj, index="bbuy_products")   # send query_obj, which we created, to bbuy_products
+    # TODO: Replace me with an appropriate call to OpenSearch
     # Postprocess results here if you so desire
 
     #print(response)
@@ -110,10 +111,63 @@ def create_query(user_query, filters, sort="_score", sortDir="desc"):
     print("Query: {} Filters: {} Sort: {}".format(user_query, filters, sort))
     query_obj = {
         'size': 10,
-        "query": {
-            "match_all": {} # Replace me with a query that both searches and filters
+        'highlight': {
+            'fields': {
+                'name': {},
+                'shortDescription': {},
+                'longDescription': {}
+            }
+        },
+        "sort": [
+            {sort: {"order": sortDir}}
+        ], # if there is a sort defined by the user (UI), e.g. relevance
+        "query": { # where the actual thing happens
+            "bool": {   # combine must, should (not must but boosted), filter (filter out stuff, same as must but doesn't go into scoring)
+                "must": [
+                    {
+                        "query_string": {
+                            "query": user_query,
+                            "fields": ["name^100", "shortDescription^50", "longDescription^20", "department"],
+                            "phrase_slop": 3        # instructor's example sets it to 2 instead, max number of terms between query terms, otherwise don't match it
+                        }
+                    }
+                ],
+                "filter": filters # all possible filters are within the aggs
+            }
+            # "match_all": {} # Replace me with a query that both searches and filters
         },
         "aggs": {
+            "department": { # name
+                "terms": {  # type
+                    "field": "department.keyword",  # field on which aggregation will run, checking values in department.keyword field and counting them
+                    "min_doc_count": 1              # default = 1, I can also put 10 if I'm not interested in depts <10 docs
+                }
+            },
+            "missing_images": {
+                "missing": {
+                    "field": "image"
+                }
+            },
+            "regular_price": {
+                "range": {
+                    "field": "regularPrice",
+                    "ranges": [
+                        {"key": "$", "to": 100},
+                        {"key": "$$", "from": 100, "to": 200},
+                        {"key": "$$$", "from": 200, "to": 300},
+                        {"key": "$$$$", "from": 300, "to": 400},
+                        {"key": "$$$$$", "from": 400, "to": 500},
+                        {"key": "$$$$$", "from": 500},
+                    ]   # come up with the ranges depending on our use case, e.g. laptop would change
+                }
+            },
+            "aggs": {
+                "price_stats": {
+                    "stats": {"field": "regularPrice"}  # gives you the basic stats of your docs, not that useful for our case but can be a check for min, max, range etc.
+                }
+            }
+
+
             #### Step 4.b.i: create the appropriate query and aggregations here
 
         }
