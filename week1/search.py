@@ -145,12 +145,13 @@ def create_query(user_query, filters, sort="_score", sortDir="desc"):
             },
             "missing_images": {
                 "missing": {
-                    "field": "image"
+                    "field": "image.keyword" # MODIFIED during debugging
                 }
             },
             "regular_price": {
                 "range": {
-                    "field": "regularPrice",
+                    "field": "regularPrice", 
+                    "keyed": False, # MODIFIED during debugging
                     "ranges": [
                         {"key": "$", "to": 100},
                         {"key": "$$", "from": 100, "to": 200},
@@ -160,16 +161,18 @@ def create_query(user_query, filters, sort="_score", sortDir="desc"):
                         {"key": "$$$$$", "from": 500},
                     ]   # come up with the ranges depending on our use case, e.g. laptop would change
                 }
-            },
-            "aggs": {
-                "price_stats": {
-                    "stats": {"field": "regularPrice"}  # gives you the basic stats of your docs, not that useful for our case but can be a check for min, max, range etc.
-                }
             }
-
 
             #### Step 4.b.i: create the appropriate query and aggregations here
 
         }
     }
     return query_obj
+
+"""
+ "aggs": {
+    "price_stats": {
+        "stats": {"field": "regularPrice"}  # gives you the basic stats of your docs, not that useful for our case but can be a check for min, max, range etc.
+    }
+}
+"""

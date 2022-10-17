@@ -21,6 +21,4 @@ def get_opensearch():
         ssl_assert_hostname=False,
         ssl_show_warn=False,
     )
-    return client
-
     return g.opensearch
