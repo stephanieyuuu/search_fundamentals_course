@@ -148,7 +148,7 @@ def create_query(user_query, filters, sort="_score", sortDir="desc"):
                     "field": "image.keyword" # MODIFIED during debugging
                 }
             },
-            "regular_price": {
+            "regularPrice": {
                 "range": {
                     "field": "regularPrice", 
                     "keyed": False, # MODIFIED during debugging
